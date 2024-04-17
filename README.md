@@ -47,5 +47,5 @@ This Unity editor script, facilitates the renaming of assets within Unity projec
 <details>
   <summary>Click to see screenshot!</summary>
   
-![Material Texture Fixer UI](images/materialtexurefixer.PNG "Screenshot of Material Texture Fixer UI")
+![Material Texture Fixer UI](imagesimagen_2024-04-17_205546497.png "Screenshot of Simple Renamer UI")
 </details>
