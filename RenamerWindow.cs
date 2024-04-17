@@ -6,6 +6,7 @@ namespace AhabTools
 {
     public class RenamerWindow : EditorWindow
     {
+        #region Variables
         private enum IterationType
         {
             SELECTED_OBJECTS,
@@ -20,6 +21,7 @@ namespace AhabTools
         public bool apendixFoldout;
         private GUIStyle foldoutHeaderStyle;
         private GUIStyle foldoutContentStyle;
+        #endregion
 
         [MenuItem("Tools/Ahab Tools/A Simple Renamer")]
         public static void ShowWindow()
