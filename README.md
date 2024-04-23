@@ -1,4 +1,4 @@
-# **A simple renamer (v1.0.0):**
+# **A simple renamer (v1.0.1):**
 <details>
   <summary>Click to expand!</summary>
   
@@ -47,5 +47,5 @@ This Unity editor script, facilitates the renaming of assets within Unity projec
 <details>
   <summary>Click to see screenshot!</summary>
   
-![A Simple Renamer UI](images/renamer_V2.PNG "Screenshot of Simple Renamer UI")
+![A Simple Renamer UI](images/rv2.PNG "Screenshot of Simple Renamer UI")
 </details>
