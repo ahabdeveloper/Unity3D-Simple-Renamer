@@ -10,7 +10,8 @@ namespace AhabTools
         private enum IterationType
         {
             SELECTED_OBJECTS,
-            SELECTED_FOLDER
+            SELECTED_FOLDER,
+            FOLDER_RECURSIVE
         }
         private IterationType iterationType;
         private string originalNamePart = "";
@@ -26,14 +27,32 @@ namespace AhabTools
         [MenuItem("Tools/Ahab Tools/A Simple Renamer")]
         public static void ShowWindow()
         {
-            GetWindow<RenamerWindow>("A Simple Renamer v1.0.0");
+            GetWindow<RenamerWindow>("A Simple Renamer v1.0.1");
         }
 
         void OnGUI()
         {
+            #region Hyperlink
+            GUIStyle hyperlinkStyle = new GUIStyle();
+            hyperlinkStyle.normal.textColor = Color.gray;
+            hyperlinkStyle.fontStyle = FontStyle.Italic;
+            Rect linkRect = EditorGUILayout.GetControlRect();
+            if (GUI.Button(linkRect, "Click here to visit the GitHub repository of this tool to check the latest version.", hyperlinkStyle))
+            {
+                Application.OpenURL("https://github.com/ahabdeveloper/Unity3D-Simple-Renamer");
+            }
+            #endregion
+
+            GUILayout.Space(5);
             #region How to use infobox
-            EditorGUILayout.HelpBox("Choose a method depending on if you want to rename only the current " +
-                "selected objects in the Project Tab or the current selected Folder also in the Project Tab.", MessageType.Info);
+            EditorGUILayout.HelpBox("" +
+                "How To use:\n" +
+                "- Choose a method depending on if you want to rename only the current " +
+                "selected objects in the Project Tab,\n" +
+                "all the files meeting the conditions inside the current selected Folder also in " +
+                "the Project Tab, \n" +
+                "or all files and folders (including all levels) meeting the conditions under the current selected folder in the Project Tab.\n" +
+                "- Run either the renaming method or the sufix/prefix method.", MessageType.Info);
             #endregion
             #region Operation Type
             // Toggle buttons for iteration type
@@ -45,6 +64,10 @@ namespace AhabTools
             if (GUILayout.Toggle(iterationType == IterationType.SELECTED_FOLDER, "Selected Folder", "Button"))
             {
                 iterationType = IterationType.SELECTED_FOLDER;
+            }
+            if (GUILayout.Toggle(iterationType == IterationType.FOLDER_RECURSIVE, "Folder Recursive", "Button"))
+            {
+                iterationType = IterationType.FOLDER_RECURSIVE;
             }
             GUILayout.EndHorizontal();
             #endregion
@@ -101,6 +124,9 @@ namespace AhabTools
                         case IterationType.SELECTED_FOLDER:
                             RenameFilesInSelectedFolder();
                             break;
+                        case IterationType.FOLDER_RECURSIVE:
+                            RenameFolderRecursive();
+                            break;
                         default:
                             break;
                     }
@@ -135,6 +161,9 @@ namespace AhabTools
                         case IterationType.SELECTED_FOLDER:
                             AddPrefixToSelectedFolder();
                             break;
+                        case IterationType.FOLDER_RECURSIVE:
+                            AddPrefixRecursive();
+                            break;
                         default:
                             break;
                     }
@@ -156,6 +185,9 @@ namespace AhabTools
                         case IterationType.SELECTED_FOLDER:
                             AddSuffixToSelectedFolder();
                             break;
+                        case IterationType.FOLDER_RECURSIVE:
+                            AddSuffixRecursive();
+                            break;
                         default:
                             break;
                     }
@@ -168,6 +200,114 @@ namespace AhabTools
         }
 
         #region Auxiliar methods
+        private void AddSuffixRecursive()
+        {
+            string path = GetSelectedFolderPath();
+            if (path == null)
+            {
+                Debug.LogWarning("No folder is currently selected or the selected item is not a folder.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(suffix))
+            {
+                Debug.LogWarning("Suffix is empty. Please enter a suffix to add.");
+                return;
+            }
+
+            AddSuffixToDirectoryContents(path);
+            AssetDatabase.Refresh(); // Refresh the Asset Database to show the new file names and directories
+        }
+
+        private void AddSuffixToDirectoryContents(string directoryPath)
+        {
+            AssetDatabase.StartAssetEditing(); // Begin grouping asset database changes
+
+            // Add suffix to files in the directory
+            string[] fileEntries = Directory.GetFiles(directoryPath);
+            foreach (string filePath in fileEntries)
+            {
+                if (!filePath.EndsWith(".meta"))
+                {
+                    string fileName = Path.GetFileName(filePath);
+                    string extension = Path.GetExtension(filePath);
+                    string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
+                    string newName = fileNameWithoutExtension + suffix + extension;
+                    AssetDatabase.RenameAsset(filePath, newName);
+                    Debug.Log($"Added suffix to {fileName}, new name {newName}");
+                }
+            }
+
+            // Recursively add suffix to subdirectories and their contents
+            string[] subdirectoryEntries = Directory.GetDirectories(directoryPath);
+            foreach (string subdirectory in subdirectoryEntries)
+            {
+                AddSuffixToDirectoryContents(subdirectory); // First add suffix to files and subdirectories inside this one
+
+                // Now check if this subdirectory itself should have the suffix added
+                string dirName = Path.GetFileName(subdirectory);
+                string newDirName = dirName + suffix;
+                string newDirPath = Path.Combine(Path.GetDirectoryName(subdirectory), newDirName);
+                AssetDatabase.MoveAsset(subdirectory, newDirPath);
+                Debug.Log($"Added suffix to directory {dirName}, new directory name {newDirName}");
+            }
+
+            AssetDatabase.StopAssetEditing(); // End grouping asset database changes
+        }
+
+        private void AddPrefixRecursive()
+        {
+            string path = GetSelectedFolderPath();
+            if (path == null)
+            {
+                Debug.LogWarning("No folder is currently selected or the selected item is not a folder.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(prefix))
+            {
+                Debug.LogWarning("Prefix is empty. Please enter a prefix to add.");
+                return;
+            }
+
+            AddPrefixToDirectoryContents(path);
+            AssetDatabase.Refresh(); // Refresh the Asset Database to show the new file names and directories
+        }
+
+        private void AddPrefixToDirectoryContents(string directoryPath)
+        {
+            AssetDatabase.StartAssetEditing(); // Begin grouping asset database changes
+
+            // Add prefix to files in the directory
+            string[] fileEntries = Directory.GetFiles(directoryPath);
+            foreach (string filePath in fileEntries)
+            {
+                if (!filePath.EndsWith(".meta"))
+                {
+                    string fileName = Path.GetFileName(filePath);
+                    string newName = prefix + fileName;
+                    AssetDatabase.RenameAsset(filePath, newName);
+                    Debug.Log($"Added prefix to {fileName}, new name {newName}");
+                }
+            }
+
+            // Recursively add prefix to subdirectories and their contents
+            string[] subdirectoryEntries = Directory.GetDirectories(directoryPath);
+            foreach (string subdirectory in subdirectoryEntries)
+            {
+                AddPrefixToDirectoryContents(subdirectory); // First add prefix to files and subdirectories inside this one
+
+                // Now check if this subdirectory itself should have the prefix added
+                string dirName = Path.GetFileName(subdirectory);
+                string newDirName = prefix + dirName;
+                string newDirPath = Path.Combine(Path.GetDirectoryName(subdirectory), newDirName);
+                AssetDatabase.MoveAsset(subdirectory, newDirPath);
+                Debug.Log($"Added prefix to directory {dirName}, new directory name {newDirName}");
+            }
+
+            AssetDatabase.StopAssetEditing(); // End grouping asset database changes
+        }
+
         private void AddSuffixToSelectedObjects()
         {
             if (Selection.objects == null || Selection.objects.Length == 0)
@@ -299,6 +439,64 @@ namespace AhabTools
             }
             AssetDatabase.StopAssetEditing();
             AssetDatabase.Refresh();
+        }
+        private void RenameFolderRecursive()
+        {
+            string path = GetSelectedFolderPath();
+            if (path == null)
+            {
+                Debug.LogWarning("No folder is currently selected or the selected item is not a folder.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(originalNamePart))
+            {
+                Debug.LogWarning("Original name part is empty. Please enter the part of the file names you want to replace.");
+                return;
+            }
+
+            RenameDirectoryContents(path);
+            AssetDatabase.Refresh(); // Refresh the Asset Database to show the new file names and directories
+        }
+
+        private void RenameDirectoryContents(string directoryPath)
+        {
+            AssetDatabase.StartAssetEditing(); // Begin grouping asset database changes
+
+            // Rename files in the directory
+            string[] fileEntries = Directory.GetFiles(directoryPath);
+            foreach (string filePath in fileEntries)
+            {
+                if (!filePath.EndsWith(".meta"))
+                {
+                    string fileName = Path.GetFileName(filePath);
+                    if (fileName.Contains(originalNamePart))
+                    {
+                        string newName = fileName.Replace(originalNamePart, newNamePart);
+                        AssetDatabase.RenameAsset(filePath, newName);
+                        Debug.Log($"Renamed {fileName} to {newName}");
+                    }
+                }
+            }
+
+            // Recursively rename subdirectories and their contents
+            string[] subdirectoryEntries = Directory.GetDirectories(directoryPath);
+            foreach (string subdirectory in subdirectoryEntries)
+            {
+                RenameDirectoryContents(subdirectory); // First rename files and subdirectories inside this one
+
+                // Now check if this subdirectory itself should be renamed
+                string dirName = Path.GetFileName(subdirectory);
+                if (dirName.Contains(originalNamePart))
+                {
+                    string newDirName = dirName.Replace(originalNamePart, newNamePart);
+                    string newDirPath = Path.Combine(Path.GetDirectoryName(subdirectory), newDirName);
+                    AssetDatabase.MoveAsset(subdirectory, newDirPath);
+                    Debug.Log($"Renamed directory {dirName} to {newDirName}");
+                }
+            }
+
+            AssetDatabase.StopAssetEditing(); // End grouping asset database changes
         }
         private void RenameFilesInSelectedFolder()
         {
